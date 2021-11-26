@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="Projet-S3-BDD">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/mongo-java-driver-3.3.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/neo4j-java-1.0.6_pour_NEO4J3ONLY.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
