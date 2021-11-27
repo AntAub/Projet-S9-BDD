@@ -112,4 +112,29 @@ public class MongoDB {
     public FindIterable<Document> listerDocuments(){
         return this.collection.find();
     }
+
+    /**
+     * Insertion de document dans une collection MongoDB
+     * @param document Docuement MongoDB à insérer dans la collection
+     */
+    public void insertDocument(Document document) {
+        this.getCollection().insertOne(document);
+    }
+
+    /**
+     * Fermeture de la connexion à la base de données MongoDB
+     */
+    public void close() {
+
+        this.client.close();
+    }
+
+    /**
+     * Nom de la serveur qui héberge la base de données MongoDB
+     * @return Nom du serveur
+     */
+    public String getHostName() {
+
+        return this.hostName;
+    }
 }

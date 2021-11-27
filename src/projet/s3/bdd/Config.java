@@ -4,7 +4,7 @@ import java.util.ResourceBundle;
 
 public class Config {
 
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("projet.s3.config");
+    private final static ResourceBundle bundle = ResourceBundle.getBundle("projet.s3.config");
 
     public final static String mongoDBhostAddress = bundle.getString("mongoDB.host.address");
     public final static int mongoDBhostport = Integer.parseInt(bundle.getString("mongoDB.host.port"));

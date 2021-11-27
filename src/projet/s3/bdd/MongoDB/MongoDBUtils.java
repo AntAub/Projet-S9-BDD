@@ -3,9 +3,8 @@ package projet.s3.bdd.MongoDB;
 import com.mongodb.client.FindIterable;
 import org.bson.Document;
 import org.bson.types.BasicBSONList;
-import org.neo4j.driver.v1.Record;
-import org.neo4j.driver.v1.StatementResult;
 import projet.s3.bdd.Databases;
+import projet.s3.bdd.Neo4J.Neo4JUtils;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -23,33 +22,27 @@ public class MongoDBUtils {
         dbs.getMongoDB().setCollection("index");
 
         /* Récupération des articles dans la base Neo4J */
-        StatementResult result = dbs.getNeo4J().getSession()
-                .run("MATCH (n:Article) RETURN n.titre, id(n) as id");
+        HashMap<Integer, String> titles = Neo4JUtils.getArticlesTitles(dbs);
 
-        int nbArticle = 0;
-        while (result.hasNext()) {
+        AtomicInteger nbArticle = new AtomicInteger();
 
-            Record record = result.next();
-
-            String title = record.get("n.titre").asString();
-            int id = record.get("id").asInt();
+        titles.forEach((id, title) -> {
 
             /* Création de la liste des mots clés */
             StringTokenizer tokenizedTitle = new StringTokenizer(title.toLowerCase(), " ,'-:;()+[]{}?!./\\");
-            BasicBSONList bson = new BasicBSONList();
+            BasicBSONList bsonList = new BasicBSONList();
 
             while (tokenizedTitle.hasMoreTokens()) {
                 /* Mot suivant et retrait des espaces innutiles */
                 String word = tokenizedTitle.nextToken().trim();
-                bson.add(word);
+                bsonList.add(word);
             }
 
             /* Insertion dans la collection MongoDB */
-            dbs.getMongoDB().getCollection()
-                    .insertOne(new Document("idDocument", id).append("motsCles", bson));
+            MongoDBUtils.insertDocument(dbs, new Document("idDocument", id).append("motsCles", bsonList));
+            System.out.print("Nombre de titres d'articles indéxés : " + nbArticle.incrementAndGet() + "\r");
+        });
 
-            System.out.print("Nombre de titres d'articles indéxés : " + ++nbArticle + "\r");
-        }
         System.out.print("\n");
         System.out.println("-----------------------------------------------------------");
     }
@@ -67,18 +60,25 @@ public class MongoDBUtils {
         HashMap<String, ArrayList<Integer>> keywordsBelongs = new HashMap<>();
 
         /* Récupération des documents dans MongoDB */
+        System.out.println("-- Récupération des documents dans MongoDB ----------------");
         dbs.getMongoDB().setCollection("index");
-        FindIterable<Document> documents = dbs.getMongoDB().getCollection().find();
+        FindIterable<Document> documents = MongoDBUtils.getAllArticles(dbs);
 
         for (Document document : documents) {
+
             ArrayList<String> keywords = (ArrayList<String>) document.get("motsCles");
             keywords.forEach((keyword) -> {
+
+                /* Si le mot-clé esrt déjà dans la liste */
                 if (keywordsBelongs.containsKey(keyword)) {
-                    /* on ajoute l'ID d'article à la liste du mot clé*/
+
+                    /* Alors on ajoute l'ID d'article à la liste du mot clé*/
                     keywordsBelongs.get(keyword).add((Integer) document.get("idDocument"));
                 } else {
-                    //TODO : expliciter ce code
+
+                    /* Sinon on crée un nouvelle liste d'articles associées au mot-clé */
                     ArrayList<Integer> articles = new ArrayList<>();
+                    /* Puis on ajoute le document courant */
                     articles.add((Integer) document.get("idDocument"));
                     keywordsBelongs.put(keyword, articles);
                 }
@@ -86,17 +86,42 @@ public class MongoDBUtils {
         }
 
         /* Création du nouvel index */
+        System.out.println("-- Insertion de l'index inversé des mots-clé dans MongoDB --");
         dbs.getMongoDB().setCollection("indexInverse");
 
         AtomicInteger nbKeywordIndexed = new AtomicInteger();
+
         keywordsBelongs.forEach((keyword, articles) ->{
+
             System.out.print("Nombre de mots-clé indéxés : " + nbKeywordIndexed.incrementAndGet() + "\r");
             BasicBSONList articlesList = new BasicBSONList();
             articlesList.addAll(articles);
-            dbs.getMongoDB().getCollection()
-                    .insertOne(new Document("mot", keyword).append("documents", articlesList));
+
+            MongoDBUtils.insertDocument(dbs, new Document("mot", keyword).append("documents", articlesList));
         });
+
         System.out.print("\n");
         System.out.println("-----------------------------------------------------------");
+    }
+
+    private static void insertDocument(Databases dbs, Document document) {
+
+        dbs.getMongoDB().insertDocument(document);
+    }
+
+    private static FindIterable<Document> getAllArticles(Databases dbs) {
+
+        return dbs.getMongoDB().getCollection().find();
+    }
+
+    public static void ensureIndex(Databases dbs, String s) {
+        //TODO ensure index
+        //dbs.getMongoDB().getCollection().ensureIndex();
+    }
+
+    public static void close(Databases dbs) {
+
+        dbs.getMongoDB().close();
+        System.out.println("Fermeture de la connexion à la base MongoDB (" + dbs.getMongoDB().getHostName() + ") fermée");
     }
 }

@@ -11,6 +11,12 @@ public class Neo4J {
     private Driver driver;
     private Session session;
 
+    /**
+     * Création d'une connexion à une base de données Neo4J
+     * @param host Nom du serveur hôte de la base de données
+     * @param port Port du service de la base de données
+     * @throws Exception Exeception levée en cas d'échec de la connexion
+     */
     public Neo4J(String host, int port) throws Exception {
 
         this.hostName = host;
@@ -28,7 +34,28 @@ public class Neo4J {
 
     }
 
+    /**
+     * Retourne la session Neo4J permetant l'execution de requetes
+     * @return Session Neo4J
+     */
     public Session getSession() {
         return session;
+    }
+
+    /**
+     * Fermeture de la connexion à la base de données Neo4J
+     */
+    public void close() {
+
+        this.session.close();
+    }
+
+    /**
+     * Nom de la serveur qui héberge la base de données Neo4J
+     * @return Nom du serveur
+     */
+    public String getHostName() {
+
+        return this.hostName;
     }
 }
