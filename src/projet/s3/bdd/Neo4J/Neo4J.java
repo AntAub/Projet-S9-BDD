@@ -27,9 +27,8 @@ public class Neo4J {
             System.out.println("Connexion établie à Neo4J : " + this.hostName);
         }
         catch (Exception e){
-            session.close();
             driver.close();
-            throw new Exception("Connexion impossible à " + this.hostName + "\n" + e.getMessage());
+            throw new Exception("Connexion impossible à " + this.hostName);
         }
 
     }

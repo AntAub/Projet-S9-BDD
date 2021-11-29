@@ -63,7 +63,7 @@ public class MongoDB {
 
         try{
             this.database = client.getDatabase(databaseName);
-            System.out.println("Base de données séléctionnée : " + this.database.getName() + " dans " + this.hostName);
+            System.out.println("Base de données : " + this.database.getName() + " sur " + this.hostName);
         }
         catch (Exception e){
             System.err.println("La base de données demandée n'exite pas. Merci de choisir parmis la liste suivante");
