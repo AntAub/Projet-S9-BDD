@@ -1,5 +1,6 @@
 package projet.s3.bdd;
 
+import com.mongodb.Block;
 import com.mongodb.client.FindIterable;
 import org.bson.Document;
 import org.bson.types.BasicBSONList;
@@ -18,8 +19,12 @@ public class Worker {
     public Worker() throws Exception {
         System.out.println("-----------------------------------------------------------------");
         Databases dbs = new Databases();
+
         this.mongoDBUtils = new MongoDBUtils(dbs.getMongoDB());
         this.neo4jUtils = new Neo4JUtils(dbs.getNeo4J());
+
+        /* Nettoyage de la base MongoDB : base propre même en cas de crash*/
+        this.clear();
     }
 
     /**
@@ -28,7 +33,7 @@ public class Worker {
     public void createIndex() {
         System.out.println("-- 3.1. Création de l'index des titres d'article dans MongoDB ---");
 
-        mongoDBUtils.setCollection("index");
+        this.mongoDBUtils.setCollection("index");
 
         /* Récupération des articles dans la base Neo4J */
         HashMap<Integer, String> titles = this.neo4jUtils.getAllArticlesTitles();
@@ -77,50 +82,26 @@ public class Worker {
 
         System.out.println("-- 3.3. Création de l'index inversé des mots-clé dans MongoDB ---");
 
-        /* Dictionnaire d'association Mot-clés / Articles */
-        HashMap<String, ArrayList<Integer>> keywordsBelongs = new HashMap<>();
-
         /* Récupération des documents dans MongoDB */
         this.mongoDBUtils.setCollection("index");
         System.out.println("-- Récupération des documents dans MongoDB ----------------------");
 
-        FindIterable<Document> documents = this.mongoDBUtils.getAllArticles();
+        FindIterable<Document> articles = this.mongoDBUtils.getAllArticles();
 
-        for (Document document : documents) {
+        this.mongoDBUtils.setCollection("indexInverse");
 
-            ArrayList<String> keywords = (ArrayList<String>) document.get("motsCles");
-            keywords.forEach((keyword) -> {
+        AtomicInteger nbKeyword = new AtomicInteger(0);
 
-                /* Si le mot-clé est déjà dans la liste */
-                if (keywordsBelongs.containsKey(keyword)) {
+        for (Document article : articles) {
 
-                    /* Alors on ajoute l'ID d'article à la liste du mot clé*/
-                    keywordsBelongs.get(keyword).add((Integer) document.get("idDocument"));
-                } else {
+            ArrayList<String> keywords = (ArrayList<String>) article.get("motsCles");
 
-                    /* Sinon on crée un nouvelle liste d'articles associées au mot-clé */
-                    ArrayList<Integer> articles = new ArrayList<>();
-                    /* Puis on ajoute le document courant */
-                    articles.add((Integer) document.get("idDocument"));
-                    keywordsBelongs.put(keyword, articles);
-                }
+            keywords.forEach(keyword ->{
+
+                if(this.mongoDBUtils.addArticleIdToKeyword(keyword, (Integer) article.get("idDocument")))
+                    System.out.print("Nombre de mots-clé indéxés : " + nbKeyword.incrementAndGet() + "\r");
             });
         }
-
-        /* Création du nouvel index */
-        this.mongoDBUtils.setCollection("indexInverse");
-        System.out.println("-- Insertion de l'index inversé des mots-clé dans MongoDB -------");
-
-        AtomicInteger nbKeywordIndexed = new AtomicInteger(0);
-
-        keywordsBelongs.forEach((keyword, articles) ->{
-
-            BasicBSONList articlesList = new BasicBSONList();
-            articlesList.addAll(articles);
-
-            this.mongoDBUtils.insertDocument(new Document("mot", keyword).append("documents", articlesList));
-            System.out.print("Nombre de mots-clé indéxés : " + nbKeywordIndexed.incrementAndGet() + "\r");
-        });
 
         System.out.print("\n");
         System.out.println("-----------------------------------------------------------------");
@@ -144,7 +125,8 @@ public class Worker {
         AtomicInteger count = new AtomicInteger(0);
         System.out.println("Liste des articles contenant le mot \" " + word + "\" (" + articlesTitlesList.size() + " résultat(s)) : ");
         articlesTitlesList.forEach((title) ->{
-            System.out.println("-- Résultat " + String.format("%02d", count.incrementAndGet()) + " : " + this.abbreviate(title, 48));
+            //System.out.println("-- Résultat " + String.format("%02d", count.incrementAndGet()) + " : " + this.abbreviate(title, 48));
+            System.out.println("-- Résultat " + String.format("%02d", count.incrementAndGet()) + " : " + title);
         });
 
         System.out.println("-----------------------------------------------------------------");
@@ -197,6 +179,12 @@ public class Worker {
         System.out.println("-----------------------------------------------------------------");
     }
 
+    /**
+     * Créer un abbreviation d'une chaine de caractère en limitant sa longueur et ajoutant "..." à la fin
+     * @param str Chaine de caractère à raccourcir
+     * @param maxLength Taille maximum de la chaine de caractère
+     * @return Chaine de caractère raccourcie
+     */
     private String abbreviate(String str, int maxLength) {
         return ( str.length () > maxLength ) ? str.substring ( 0 , maxLength - 3 ).concat ( "... " ) : str;
     }

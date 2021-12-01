@@ -13,6 +13,7 @@ import projet.s3.bdd.Neo4J.Neo4JUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MongoDBUtils {
 
@@ -137,5 +138,31 @@ public class MongoDBUtils {
 
         this.mongodb.close();
         System.out.println("Fermeture de la connexion à la base Mongo (" + this.mongodb.getHostName() + ")");
+    }
+
+    /**
+     * Ajoute l'id d'article à un mot clé existant sinon elle crée le mot clé
+     * @param keyword Mot clé
+     * @param articleId Id de l'article associé au mot clé
+     * @return vrai si un nouveau mot clé est indexé, faux sinon
+     */
+    @SuppressWarnings("unchecked")
+    public Boolean addArticleIdToKeyword(String keyword, Integer articleId) {
+
+        Document keywordDocument = this.mongodb.getCollection().find(Filters.eq("mot", keyword)).first();
+
+        if(keywordDocument == null){
+
+            ArrayList<Integer> articles = new ArrayList<>();
+            articles.add(articleId);
+            this.insertDocument(new Document("mot", keyword).append("documents", articles));
+            return true;
+        }
+        else{
+
+            ((ArrayList<Integer>) keywordDocument.get("documents")).add(articleId);
+            this.mongodb.getCollection().replaceOne(Filters.eq("mot",keyword), keywordDocument);
+            return false;
+        }
     }
 }

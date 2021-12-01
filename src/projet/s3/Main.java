@@ -21,30 +21,23 @@ public class Main {
             worker.ensureKeywordsIndex();
 
             /* 3.3. Mise en place d’une « structure miroir » sur MongoDB */
-            // TODO Refaire la fonction
-            /* Car c'est pas la bonne methode (cf. sujet) mais il faut pas importer toute la puis faire le traitement.
-            Il faut recupérée element par element et utiliser replaceOne pour actuliser.
-            --> .replaceOne(Filters.eq("_id", docExistant.get("_id")),docExistant
-            C'est logique car on peut pas se permettre de télécharger toute la base en local si elle fait 10Go
-            */
             // TODO Trouver pourquoi on à 2845 et pas 2846 comme annoncé dans le sujet
             worker.createInvertIndex();
 
             /* 3.4. Recherche de documents */
             worker.searchInvertIndex("with");
+            // TODO Resultat 01 en double : pourquoi ?
 
             /* 3.5. Auteurs ayant écrit le plus d’articles */
             worker.get10AuthorsWithMostArticles();
 
             /* 3.6. Recherche de documents avancée */
+            //TODO Vérifier que c'est la bonne réponse attendue
             worker.searchInvertIndexAdvanced(new ArrayList<>() {{
                 add("with");
                 add("systems");
                 add("new");
             }});
-
-            /* Nettoyage de la base MongoDB */
-            worker.clear();
 
             /* Fermeture des connexions */
             worker.closeConnections();
