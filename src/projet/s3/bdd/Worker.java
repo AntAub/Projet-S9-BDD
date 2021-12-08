@@ -1,6 +1,5 @@
 package projet.s3.bdd;
 
-import com.mongodb.Block;
 import com.mongodb.client.FindIterable;
 import org.bson.Document;
 import org.bson.types.BasicBSONList;
@@ -17,6 +16,7 @@ public class Worker {
     private final Neo4JUtils neo4jUtils;
 
     public Worker() throws Exception {
+
         System.out.println("-----------------------------------------------------------------");
         Databases dbs = new Databases();
 
@@ -43,7 +43,7 @@ public class Worker {
         titles.forEach((id, title) -> {
 
             /* Création de la liste des mots clés */
-            StringTokenizer tokenizedTitle = new StringTokenizer(title.toLowerCase(), " ,'-:;()+[]{}?!./\\");
+            StringTokenizer tokenizedTitle = new StringTokenizer(title.toLowerCase(), " ,'-:;()+[]{}?!.");
             BasicBSONList bsonList = new BasicBSONList();
 
             while (tokenizedTitle.hasMoreTokens()) {
@@ -123,11 +123,12 @@ public class Worker {
         ArrayList<String> articlesTitlesList = this.neo4jUtils.getArticlesTitlesFromArticlesIds(articlesIdsList);
 
         AtomicInteger count = new AtomicInteger(0);
+
         System.out.println("Liste des articles contenant le mot \" " + word + "\" (" + articlesTitlesList.size() + " résultat(s)) : ");
-        articlesTitlesList.forEach((title) ->{
-            //System.out.println("-- Résultat " + String.format("%02d", count.incrementAndGet()) + " : " + this.abbreviate(title, 48));
-            System.out.println("-- Résultat " + String.format("%02d", count.incrementAndGet()) + " : " + title);
-        });
+
+        articlesTitlesList.forEach((title) ->
+                System.out.println("-- Résultat " + String.format("%02d", count.incrementAndGet()) + " : " + this.abbreviate(title, 48))
+        );
 
         System.out.println("-----------------------------------------------------------------");
     }
@@ -145,10 +146,12 @@ public class Worker {
         ArrayList<String> authorList = this.neo4jUtils.getAuthorsWithMostArticles(10);
 
         AtomicInteger count = new AtomicInteger(0);
+
         System.out.println("Liste des 10 auteurs ayant écrit le plus d’articles : ");
-        authorList.forEach((author) ->{
-            System.out.println("-- Auteur " + String.format("%02d", count.incrementAndGet()) + " : " + author);
-        });
+
+        authorList.forEach((author) ->
+                System.out.println("-- Auteur " + String.format("%02d", count.incrementAndGet()) + " : " + author)
+        );
 
         System.out.println("-----------------------------------------------------------------");
     }
@@ -158,24 +161,28 @@ public class Worker {
      * Les documents sont triés par nombre décroissant de mots de la requête contenus dans les documents.
      * @param words Tablea des mots à rechercher
      */
-    @SuppressWarnings("unchecked")
     public void searchInvertIndexAdvanced(List<String> words) {
 
         this.mongoDBUtils.setCollection("indexInverse");
 
         System.out.println("-- 3.6. Recherche de documents avancée --------------------------");
 
-        ArrayList<Object> articles = this.mongoDBUtils.getArticlesWithWordsInTitle(words, 10);
+        /* On récupère la liste des id d'articles triés par nombre d'occurence des mots */
+        LinkedHashMap<Integer, ArrayList<Integer>> articleList = this.mongoDBUtils.getArticlesWithWordsInTitle(words, 10);
 
-        ArrayList<Integer> listIdsArticles = (ArrayList<Integer>) articles.get(0);
-        ArrayList<Integer> listNbOccurrences = (ArrayList<Integer>) articles.get(1);
+        System.out.println("Liste des articles contenant les mots recherchés :");
 
-        System.out.println("Liste des articles contenant les mots recherchés (" + listIdsArticles.size() + ") :");
-        for(int i = 0; i < listIdsArticles.size(); i++){
-            String title = this.neo4jUtils.getArticleTitleFromId(listIdsArticles.get(i));
-            System.out.println(this.abbreviate(listIdsArticles.get(i) + " " + title + " ", 63) + listNbOccurrences.get(i));
-        }
+        articleList.forEach((nbOccurences, listIdsArticles)-> {
 
+            /* On récupère les titres des articles associé aux id d'articles par ordre alphapétique */
+            LinkedHashMap<Integer, String> titles = this.neo4jUtils.getArticleTitleFromId(listIdsArticles, true);
+
+            titles.forEach((idArticle, title) ->{
+
+                /* On affiche l'id de l'article, son titre et le nombre d'occurance du mot*/
+                System.out.println(this.abbreviate(idArticle + " " + title + " ", 63) + nbOccurences);
+            });
+        });
         System.out.println("-----------------------------------------------------------------");
     }
 
@@ -190,22 +197,23 @@ public class Worker {
     }
 
     /**
-     * Ferme à la connexion à la toutes les bases de données (MongoDB, Neo4J)
-     */
-    public void closeConnections() {
-
-        this.mongoDBUtils.close();
-        this.neo4jUtils.close();
-        System.out.println("-----------------------------------------------------------------");
-    }
-
-    /**
      * Supprime les index de la base de données MongoDB
      */
     public void clear() {
 
         this.mongoDBUtils.dropIndex("indexInverse");
         this.mongoDBUtils.dropIndex("index");
+        System.out.println("-----------------------------------------------------------------");
+    }
+
+
+    /**
+     * Ferme à la connexion à la toutes les bases de données (MongoDB, Neo4J)
+     */
+    public void closeConnections() {
+
+        this.mongoDBUtils.close();
+        this.neo4jUtils.close();
         System.out.println("-----------------------------------------------------------------");
     }
 }

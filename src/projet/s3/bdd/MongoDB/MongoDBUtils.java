@@ -1,19 +1,13 @@
 package projet.s3.bdd.MongoDB;
 
-import com.mongodb.Block;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.neo4j.driver.v1.StatementResult;
-import projet.s3.bdd.Neo4J.Neo4JUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.*;
 
 public class MongoDBUtils {
 
@@ -55,7 +49,7 @@ public class MongoDBUtils {
      */
     public void ensureAscendingIndex(String fielNames) {
 
-        //ensureIndex() deprecated : utilisation de createIndex()
+        /* ensureIndex() deprecated : utilisation de createIndex() */
         this.ensureIndex(Indexes.ascending(fielNames));
     }
 
@@ -76,7 +70,7 @@ public class MongoDBUtils {
     @SuppressWarnings("unchecked")
     public ArrayList<Integer> getArticlesIdsListFromWord(String word) {
 
-        Document document = (Document) this.mongodb.getCollection().find(Filters.eq("mot", word)).first();
+        Document document = this.mongodb.getCollection().find(Filters.eq("mot", word)).first();
 
         return (ArrayList<Integer>) document.get("documents");
     }
@@ -85,10 +79,10 @@ public class MongoDBUtils {
      * Recupère la liste des IDs d'articles où les mots apparaissent ainsi que leur nombre d'occurence dans chaque titre
      * @param words Liste des mots à rechercher
      * @param limit Nombre maximum de résultats
-     * @return L'index 0 est la liste des id d'articles. L'index 1 est le nombre d'occurances des mots recherchés.
+     * @return liste des id d'articles trié par nombre d'occurances des mots cherchés dans leur titre
      */
     @SuppressWarnings("unchecked")
-    public ArrayList<Object> getArticlesWithWordsInTitle(List<String> words, int limit) {
+    public LinkedHashMap<Integer, ArrayList<Integer>> getArticlesWithWordsInTitle(List<String> words, int limit) {
 
         /*
         * On formatte la liste des mots en ajoutant des guillemets pour permettre la recherche
@@ -99,25 +93,33 @@ public class MongoDBUtils {
             wordsLocal.add("'" + word + "'");
 
         /* On requete mongoDB */
-        AggregateIterable<Document> documents = this.mongodb.getCollection().aggregate(java.util.Arrays.asList(
-                Document.parse("{$match : { mot : {$in : " + wordsLocal + "}}}"),
-                Document.parse("{$sort :{mot : -1}}"),
-                Document.parse("{$unwind : \"$documents\" }"),
-                Document.parse("{$group : {_id: \"$documents\", nbOccurances : { $sum: 1}}}"),
-                Document.parse("{$sort :{ nbOccurances : -1}}"),
-                Document.parse("{$limit :" + limit + "}")
-        ));
+        AggregateIterable<Document> documents =
+                this.mongodb.getCollection().aggregate(java.util.Arrays.asList(
+                        //Liste de id d'articles contenant les mots recherchés
+                        Document.parse("{$match : { mot : {$in : "+wordsLocal+"}}}"),
+                        //Tri par ordre alphabétique
+                        Document.parse("{$sort :{mot : -1}}"),
+                        //Liste des mots associés à l'id d'articles
+                        Document.parse("{$unwind : \"$documents\" }"),
+                        //On groupe par id d'article pour compter le nombre d'occurances du mot par article
+                        Document.parse("{$group : { _id: \"$documents\", nbOccurances : { $sum: 1 }}}"),
+                        //On tri par nombre d'occurence des mots dans le titre
+                        Document.parse("{$sort :{ nbOccurances : -1 }}"),
+                        //On limite au N premier article
+                        Document.parse("{$limit : " + limit + "}"),
+                        //On groupe par nombre d'occurance
+                        Document.parse("{$group : { _id : \"$nbOccurances\", documents: { $addToSet : \"$_id\" }}}"),
+                        //On tri par nombre décroissant d'occurance
+                        Document.parse("{$sort :{ _id : -1}}")
+                ));
 
-        ArrayList<Object> articles = new ArrayList<>();
-        articles.add(new ArrayList<Integer>()); //Liste des IDs d'article
-        articles.add(new ArrayList<Integer>()); //Liste du nombre d'occurances
+        LinkedHashMap<Integer, ArrayList<Integer>> articleList = new LinkedHashMap<>();
 
         for (Document document : documents) {
-            ((ArrayList<Integer>) articles.get(0)).add((Integer) document.get("_id"));
-            ((ArrayList<Integer>) articles.get(1)).add((Integer) document.get("nbOccurances"));
+            articleList.put((Integer) document.get("_id"), (ArrayList<Integer>) document.get("documents"));
         }
 
-        return articles;
+        return articleList;
     }
 
     /**

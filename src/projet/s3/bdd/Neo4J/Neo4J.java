@@ -9,7 +9,7 @@ public class Neo4J {
     private final String hostName;
 
     private Driver driver;
-    private Session session;
+    private final Session session;
 
     /**
      * Création d'une connexion à une base de données Neo4J
