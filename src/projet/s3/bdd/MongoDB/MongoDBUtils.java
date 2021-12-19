@@ -45,12 +45,12 @@ public class MongoDBUtils {
 
     /**
      * Met en place un index par ordre croissant sur les valeurs des champs choisis
-     * @param fielNames Nom des champs sur lequels ils faut crée un Index
+     * @param fieldNames Nom des champs sur lequels ils faut crée un Index
      */
-    public void ensureAscendingIndex(String fielNames) {
+    public void ensureAscendingIndex(String fieldNames) {
 
         /* ensureIndex() deprecated : utilisation de createIndex() */
-        this.ensureIndex(Indexes.ascending(fielNames));
+        this.ensureIndex(Indexes.ascending(fieldNames));
     }
 
     /**
@@ -85,8 +85,8 @@ public class MongoDBUtils {
     public LinkedHashMap<Integer, ArrayList<Integer>> getArticlesWithWordsInTitle(List<String> words, int limit) {
 
         /*
-        * On formatte la liste des mots en ajoutant des guillemets pour permettre la recherche
-        * et evité les injections de code
+        * On formate la liste des mots en ajoutant des guillemets pour permettre la recherche
+        * et eviter les injections de code
         */
         ArrayList<String> wordsLocal = new ArrayList<>();
         for (String word : words)
